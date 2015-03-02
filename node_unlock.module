@@ -1,0 +1,100 @@
+<?php
+
+function node_unlock_perm() {
+  return array('Administer Node Unlock');
+}
+
+function node_unlock_menu() {
+  $items['admin/settings/ws_node_lock_status'] = array(
+        'page callback' => 'drupal_get_form',
+        'title' => 'Node Unlock Module',
+        'page arguments' => array('node_unlock_admin_page'),
+        'access arguments' => array('Administer Node Unlock'),
+        'type' => MENU_NORMAL_ITEM,      
+    );
+    return $items;    
+}
+
+function node_unlock_array_orderby() {
+    $args = func_get_args();
+    $data = array_shift($args);
+    foreach ($args as $n => $field) {
+        if (is_string($field)) {
+            $tmp = array();
+            foreach ($data as $key => $row)
+                $tmp[$key] = $row[$field];
+            $args[$n] = $tmp;
+            }
+    }
+    $args[] = &$data;
+    call_user_func_array('array_multisort', $args);
+    return array_pop($args);
+}
+
+function node_unlock_admin_page() {
+    $unlock_admin_settings = json_decode(variable_get('unlock_admin_settings')); 
+    
+    $table = "<table>";    
+    $types = node_get_types('types'); 
+    $typesArr = array();
+    
+    foreach ($types as $type) {
+        $typesArr[] = array(
+            'type' => $type->orig_type,
+            'name' => $type->name
+        );
+    }    
+    
+    $typesArr = array_orderby($typesArr, 'name', SORT_ASC);
+    
+    foreach ($typesArr as $type) {
+        $selected = '';
+        $enabled = '';
+        foreach ($unlock_admin_settings as $opt) {
+            if ($opt == $type['type'] && $opt != '') {
+                $selected = 'checked';
+            }
+        }
+        
+        if (empty($type['type'])) {
+            $enabled = 'disabled';
+        }
+        
+        $table .= "<tr>\n";
+        $table .= "<td><input type='checkbox' value='" . $type['type'] . "' name='ck-type[]' {$enabled} {$selected} /> " . $type['name'] . "</td>\n";        
+        $table .= "</tr>";
+    }       
+    
+    $table .= "</table>";
+    $form['table'] = array(
+      '#type' => 'markup',
+      '#value' => $table,
+    );  
+    
+     $form['buttons']['submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Save configuration'),
+     );
+     $form['#submit'][] = 'node_unlock_admin_page_submit';
+    
+    return $form;
+}
+
+function node_unlock_admin_page_submit() {
+    if (isset($_POST['ck-type']) && !empty($_POST['ck-type'])) {
+        variable_set('unlock_admin_settings', json_encode($_POST['ck-type'])); 
+    }
+}
+
+function node_unlock_form_alter(&$form, &$form_state, $form_id) {
+    $unlock_admin_settings = json_decode(variable_get('unlock_admin_settings', null));
+    
+    foreach ($unlock_admin_settings as $unlock) {
+        if ($form_id == "{$unlock}_node_form") {
+            $path = drupal_get_path('module', 'node_unlock');
+            $title = drupal_get_title();
+            drupal_set_title('<img src="/' . $path . '/img/lock.png" height="16" /> ' . $title);
+            $form['changed']['#default_value'] = time() * 3000;
+        }
+    }
+}

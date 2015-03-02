@@ -1,0 +1,5 @@
+name = "Nodes Unlock Module"
+description = "Remove the 'This content has been modified by another user' message"
+core = 6.x
+version = "6.x-1.0"
+package = Nightshade
